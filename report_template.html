@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ExposurePlot · 拍摄参数统计</title>
+<style>
+:root{color-scheme:light;--ink:oklch(27% .015 250);--muted:oklch(48% .015 250);--line:oklch(88% .008 250);--paper:oklch(96% .006 250);--radius:4px}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.5 "Segoe UI","Noto Sans CJK SC","Microsoft YaHei",sans-serif;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+main{max-width:1800px;margin:auto;padding:28px 32px}header{display:flex;align-items:baseline;justify-content:space-between;gap:20px}h1{font-size:25px;letter-spacing:-.012em;margin:0;font-weight:650}h1 span{font-size:13px;color:var(--muted);font-weight:400;margin-left:12px}#summary{margin:0;font-size:16px}#directory{color:var(--muted);overflow-wrap:anywhere;margin:6px 0 16px;font-size:12px}
+fieldset{border:0;padding:0;margin:0 0 16px}legend{font-size:12px;color:var(--muted);margin-bottom:5px}#legend{display:flex;flex-wrap:wrap;gap:4px 22px}.lens{display:flex;gap:8px;align-items:center;min-height:40px;cursor:pointer;overflow-wrap:anywhere;max-width:100%}.lens input{accent-color:var(--color);flex-shrink:0}.swatch{width:10px;height:10px;background:var(--color);border-radius:2px;flex-shrink:0}.lens small{color:var(--muted);white-space:nowrap}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));background:white;border:1px solid var(--line)}section{min-width:0;padding:18px 20px 8px}section:nth-child(odd){border-right:1px solid var(--line)}section:nth-child(-n+2){border-bottom:1px solid var(--line)}.chart-heading{display:flex;justify-content:space-between;gap:10px;align-items:baseline}h2{font-size:16px;margin:0}h2 b{font-size:11px;color:var(--muted);font-weight:500;margin-right:8px}.chart-heading span{color:var(--muted);font-size:12px}.scroll{overflow-x:auto}.plot{display:block;height:300px;width:100%;min-width:100%}svg text{font-family:inherit;font-size:11px;fill:var(--muted)}.bar:focus{outline:2px solid var(--ink);outline-offset:2px}.bar{transition:opacity 120ms}.tip{position:fixed;pointer-events:none;z-index:10;max-width:min(350px,90vw);background:var(--ink);color:oklch(97% .006 250);padding:10px 13px;border-radius:var(--radius);font-size:12px;white-space:pre-line;box-shadow:0 3px 12px #0002}.tip[hidden]{display:none}footer{font-size:12px;color:var(--muted);margin-top:14px}.skip{position:absolute;left:12px;top:-100px}.skip:focus{top:4px}input:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+@media(hover:hover){.bar:hover{opacity:.75}}
+@media(max-width:800px){main{padding:18px 12px}header{display:block}#summary{margin-top:6px}h1 span{display:none}.grid{grid-template-columns:minmax(0,1fr)}section{padding:14px 10px 6px}section:nth-child(odd){border-right:0}section:not(:last-child){border-bottom:1px solid var(--line)}.plot{height:285px}}
+@media(prefers-reduced-motion:reduce){.bar{transition:none}}
+@media print{main{padding:0}.tip{display:none}.scroll{overflow:visible}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}section{break-inside:avoid}}
+</style>
+</head>
+<body><a class="skip" href="#charts">跳到统计图</a><main>
+<header><h1>ExposurePlot <span>拍摄参数统计</span></h1><p id="summary" aria-live="polite"></p></header>
+<p id="directory"></p><fieldset><legend>镜头筛选 · 勾选后同步更新四张图</legend><div id="legend"></div></fieldset>
+<div class="grid" id="charts"></div>
+<footer id="notes"></footer>
+</main><div id="tooltip" class="tip" role="status" hidden></div>
+<script id="data" type="application/json">__REPORT_DATA__</script>
+<script>
+'use strict';
+const data=JSON.parse(document.getElementById('data').textContent);
+const colors=['#267c91','#cb7632','#7356a4','#43834b','#bd4960','#6b6a35'];
+const selected=new Set(data.lenses.map((_,i)=>i));
+const $=id=>document.getElementById(id), ns='http://www.w3.org/2000/svg';
+function node(tag,attrs={},text){const n=document.createElementNS(ns,tag);for(const [k,v] of Object.entries(attrs))n.setAttribute(k,v);if(text!==undefined)n.textContent=text;return n}
+function label(tag,v){if(v===null)return '未知';if(tag==='ExposureTime')return v<1?'1/'+Number((1/v).toPrecision(6)):String(v);if(tag==='FNumber')return 'f/'+v;return String(v)}
+function hideTip(){$('tooltip').hidden=true}
+function showTip(text,x,y){const tip=$('tooltip');tip.textContent=text;tip.hidden=false;const box=tip.getBoundingClientRect();tip.style.left=Math.max(8,Math.min(x+12,innerWidth-box.width-8))+'px';tip.style.top=Math.max(8,Math.min(y+12,innerHeight-box.height-8))+'px'}
+$('directory').textContent=data.directory;
+$('notes').textContent='柱高 = 照片数，颜色 = 镜头。横轴按数值排序、等距排列各取值，非连续数值比例尺；快门从快到慢。焦距直接取 EXIF 的 35mm 等效焦距，缺失时标为未知，不使用实际焦距代替。RAW + JPG 同名配对只计一次，已合并 '+data.removed+' 份重复文件；跳过 '+data.failed+' 张读取失败的照片。悬停、轻触或聚焦柱段查看组内占比。';
+data.lenses.forEach((lens,i)=>{const l=document.createElement('label');l.className='lens';l.style.setProperty('--color',colors[i%colors.length]);const input=document.createElement('input');input.type='checkbox';input.checked=true;input.addEventListener('change',()=>{input.checked?selected.add(i):selected.delete(i);render()});const sw=document.createElement('span');sw.className='swatch';const name=document.createElement('span');name.textContent=lens.name;const count=document.createElement('small');count.textContent=lens.count+' 张';l.append(input,sw,name,count);$('legend').append(l)});
+data.metrics.forEach(([tag,title,unit],i)=>{const section=document.createElement('section');const head=document.createElement('div');head.className='chart-heading';const h=document.createElement('h2');const num=document.createElement('b');num.textContent='0'+(i+1);h.append(num,document.createTextNode(title));const sub=document.createElement('span');sub.textContent=unit;head.append(h,sub);const scroll=document.createElement('div');scroll.className='scroll';const svg=node('svg',{class:'plot',role:'img','aria-label':title+'使用次数堆叠柱状图'});svg.id=tag;scroll.append(svg);section.append(head,scroll);$('charts').append(section)});
+function render(){hideTip();const total=data.lenses.reduce((s,l)=>s+l.count,0);const active=data.lenses.reduce((s,l,i)=>s+(selected.has(i)?l.count:0),0);$('summary').textContent=active+' / '+total+' 张 · '+selected.size+' 个镜头';for(const [tag,title] of data.metrics)draw(tag,title)}
+function draw(tag,title){const svg=$(tag);svg.replaceChildren();const values=[...new Set(data.lenses.flatMap((l,i)=>selected.has(i)?l.metrics[tag].map(v=>v[0]):[]))].sort((a,b)=>a===null?1:b===null?-1:a-b);
+const available=svg.parentElement.clientWidth;const W=Math.max(available,values.length*32+65,280),H=300,L=42,R=12,T=28,B=65,PW=W-L-R,PH=H-T-B;
+svg.style.width=W+'px';svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+if(!values.length){svg.append(node('text',{x:W/2,y:H/2,'text-anchor':'middle'},data.lenses.length?'请选择至少一个镜头':'没有可统计的照片'));return}
+const maps=data.lenses.map(l=>new Map(l.metrics[tag]));const sums=values.map(v=>data.lenses.reduce((s,l,i)=>s+(selected.has(i)?(maps[i].get(v)||0):0),0));const max=Math.max(...sums,1);const step=Math.max(1,Math.ceil(max/5)),top=Math.ceil(max/step)*step;
+for(let n=0;n<=top;n+=step){const y=T+PH-n/top*PH;svg.append(node('line',{x1:L,x2:W-R,y1:y,y2:y,stroke:'#e3e7ea','stroke-width':1}),node('text',{x:L-9,y:y+4,'text-anchor':'end'},n))}
+svg.append(node('text',{x:L,y:14},'照片数'));
+values.forEach((v,k)=>{const slot=PW/values.length,bw=Math.min(42,slot*.7),x=L+k*slot+(slot-bw)/2;let sum=0;
+data.lenses.forEach((lens,i)=>{if(!selected.has(i))return;const count=maps[i].get(v)||0;if(!count)return;const height=count/top*PH;const y=T+PH-(sum+count)/top*PH;const detail=lens.name+'\n'+title+' '+label(tag,v)+(tag==='ExposureTime'&&v!==null?' s':'')+'\n'+count+' 张 · 该镜头的 '+(count/lens.count*100).toFixed(1)+'%';const rect=node('rect',{x,y,width:bw,height,fill:colors[i%colors.length],class:'bar',tabindex:0,'aria-label':detail});rect.append(node('title',{},detail));rect.addEventListener('pointermove',e=>showTip(detail,e.clientX,e.clientY));rect.addEventListener('pointerleave',hideTip);rect.addEventListener('focus',()=>{const b=rect.getBoundingClientRect();showTip(detail,b.x,b.y)});rect.addEventListener('blur',hideTip);rect.addEventListener('keydown',e=>{if(e.key==='Escape')hideTip()});svg.append(rect);sum+=count});
+svg.append(node('text',{x:x+bw/2,y:T+PH-sum/top*PH-6,'text-anchor':'middle',fill:'#303b47'},sum));const tx=x+bw/2,ty=T+PH+17;svg.append(node('text',{x:tx,y:ty,transform:`rotate(-45 ${tx} ${ty})`,'text-anchor':'end'},label(tag,v)))})}
+let timer;window.addEventListener('resize',()=>{clearTimeout(timer);timer=setTimeout(render,120)});render();
+</script></body></html>
